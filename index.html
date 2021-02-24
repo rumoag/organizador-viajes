@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+          integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+          crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+            integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+            crossorigin=""></script>
+</head>
+<body>
+    <div id="app">
+        <div id="mapid" style="height: 35rem; width: 70rem">
+
+        </div>
+        <div >
+            <div v-for="dia in 2">
+                <h1> Día {{dia}}</h1>
+                <div style="display: grid; grid-template-columns: repeat(4,1fr);">
+                    <div v-for="actividad in ObtenerActividadesDeUnDia(dia)">
+                        <img :src="actividad.fields.Foto[0].url" alt="" style="width: 3rem;height: 3rem">
+                        <h3>{{actividad.fields.Nombre}}</h3>
+                        <p>{{actividad.fields.Inicio | diaFormateado}} a {{actividad.fields.Fin | diaFormateado}}</p>
+                    </div>
+
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <script>
+        const url_api= "https://api.airtable.com/v0/apprsXbMt25CaW0Wf/Actividades?view=Grid%20view";
+        const Authorization = "Bearer keypFgW9ql6PGevJQ";
+
+        new Vue({
+            el: '#app',
+            data: {
+                actividades: [],
+
+            },
+            //filtra texto, no array
+            filters: {
+                diaFormateado: function (valor){
+                    const miFecha = new Date(valor);
+                    let miMinutes = miFecha.getMinutes();
+
+                    if (miMinutes.toString().length === 1){
+                        miMinutes = '0'.concat(miMinutes);
+                    }
+
+                    return `${miFecha.getHours()}:${miMinutes}`;
+                }
+            },
+            //lee al principio y ya se queda guardado como en un local, no recarga
+            computed:{
+
+            },
+            mounted: function (){
+                this.obtenerDatos();
+
+            },
+            methods: {
+                obtenerDatos : function () {
+                    fetch(url_api, {
+                        headers: {
+                            'Authorization' : Authorization,
+                        },
+                    })
+                        .then((response) => response.json())
+                        .then((json) => {this.actividades = json.records})
+                    //then cuando acabe una linea haz otra
+                        .then((json) => this.iniciarMapa());
+                },
+
+                ObtenerActividadesDeUnDia: function (numDia) {
+                    return this.actividades.filter( actividad => {
+                        return actividad.fields.Dia === numDia;
+                    })
+                },
+                iniciarMapa: function (){
+                    const mymap = L.map('mapid').setView([51.505, -0.09], 13);
+                    L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
+                        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+                        maxZoom: 3,
+                        id: 'mapbox/streets-v11',
+                        tileSize: 512,
+                        zoomOffset: -1,
+                        accessToken: 'pk.eyJ1IjoicnVtb2FnIiwiYSI6ImNrbGkybHJ0MDA5M2EyeG5tZHl0dTZocDIifQ.5uMl_i2kS7adppX4xGvASw'
+                    }).addTo(mymap);
+                    //añadir marcadores
+                    this.actividades.forEach(actividad => {
+                        L.marker([actividad.fields.Latitud, actividad.fields.Longitud]).addTo(mymap);
+                    });
+                }
+            },
+
+        });
+    </script>
+    </body>
+</html>
